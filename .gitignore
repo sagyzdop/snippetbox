@@ -25,3 +25,5 @@ go.work.sum
 .env
 
 /tmp
+.DS_Store
+**/.DS_Store
