@@ -2,40 +2,30 @@ package main
 
 import (
 	"flag"
-	"log/slog" // New import
+	"log/slog" 
 	"net/http"
-	"os" // New import
+	"os" 
 )
+
+type application struct {
+	logger *slog.Logger
+}
 
 func main() {
 	addr := flag.String("addr", ":4000", "HTTP network address")
 	flag.Parse()
 
-	// Use the slog.New() function to initialize a new structured logger, which
-	// writes to the standard out stream and uses the default settings.
-	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-		Level:     slog.LevelDebug,
-		AddSource: true,
-	}))
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
-	mux := http.NewServeMux()
+	app := &application{
+		logger: logger,
+	}
 
-	fileServer := http.FileServer(http.Dir("./ui/static/"))
-	mux.Handle("GET /static/", http.StripPrefix("/static", fileServer))
+	logger.Info("starting server", "addr", *addr)
 
-	mux.HandleFunc("GET /{$}", home)
-	mux.HandleFunc("GET /snippet/view/{id}", snippetView)
-	mux.HandleFunc("GET /snippet/create", snippetCreate)
-	mux.HandleFunc("POST /snippet/create", snippetCreatePost)
-
-	// Use the Info() method to log the starting server message at Info severity
-	// (along with the listen address as an attribute).
-	logger.Info("starting server at http://localhost", "addr", *addr)
-
-	err := http.ListenAndServe(*addr, mux)
-	// And we also use the Error() method to log any error message returned by
-	// http.ListenAndServe() at Error severity (with no additional attributes),
-	// and then call os.Exit(1) to terminate the application with exit code 1.
+	// Call the new app.routes() method to get the servemux containing our routes,
+	// and pass that to http.ListenAndServe().
+	err := http.ListenAndServe(*addr, app.routes())
 	logger.Error(err.Error())
 	os.Exit(1)
 }
