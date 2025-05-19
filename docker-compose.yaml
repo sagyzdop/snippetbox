@@ -1,0 +1,37 @@
+# docker compose up -d
+# docker exec -it [mysql container name] bash
+# docker logs [mysql container name]
+
+services:  
+  mysql:
+    image: mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: test
+      
+    expose:
+      - "3306"
+    ports:
+      - '3306:3306'
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "docker.for.mac.localhost", "-u", "root", "-ptest"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: cmd/web/Dockerfile
+    ports:
+      - "4000:4000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      - DSN=web:test@tcp(mysql:3306)/snippetbox?parseTime=true
+    volumes:
+      - ./ui:/snippetbox/ui
+
