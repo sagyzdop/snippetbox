@@ -1,4 +1,7 @@
-FROM golang:alpine AS builder
+FROM golang:1.23 AS builder
+
+RUN useradd -ms /bin/sh -u 1001 app
+USER app
 
 WORKDIR /build
 COPY go.mod go.sum ./
@@ -8,7 +11,5 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o ./snippetbox ./web
 
 FROM alpine:latest
 WORKDIR /snippetbox
-COPY --from=builder /build/snippetbox ./cmd/web
-COPY ./ui ./ui
-
-# CMD ["./cmd/web"]
+COPY --chown=app:app --from=builder /build/snippetbox ./cmd/web
+COPY --chown=app:app ./ui ./ui

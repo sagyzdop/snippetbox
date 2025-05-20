@@ -24,7 +24,7 @@ services:
   app:
     build:
       context: .
-      dockerfile: cmd/web/Dockerfile
+      dockerfile: cmd/web/Dockerfile.dev
     ports:
       - "4000:4000"
     depends_on:
@@ -32,6 +32,13 @@ services:
         condition: service_healthy
     environment:
       - DSN=web:test@tcp(mysql:3306)/snippetbox?parseTime=true
-    volumes:
-      - ./ui:/snippetbox/ui
+    command: ./cmd/web
+    develop:
+      watch:
+        - action: sync
+          x-initialSync: true
+          path: ./ui/static
+          target: /snippetbox/ui/static
+        - action: rebuild
+          path: ./ui/html
 
