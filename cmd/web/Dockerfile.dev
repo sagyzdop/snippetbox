@@ -6,8 +6,9 @@ USER app
 WORKDIR /build
 COPY go.mod go.sum ./
 RUN go mod download
-COPY ./cmd ./
-RUN CGO_ENABLED=0 GOOS=linux go build -o ./snippetbox ./web
+COPY ./cmd ./cmd
+COPY ./internal ./internal
+RUN CGO_ENABLED=0 GOOS=linux go build -o ./snippetbox ./cmd/web
 
 FROM alpine:latest
 WORKDIR /snippetbox

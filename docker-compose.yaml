@@ -7,16 +7,15 @@ services:
     image: mysql
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: test
-      
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
     expose:
-      - "3306"
+      - "${MYSQL_PORT}"
     ports:
-      - '3306:3306'
+      - '${MYSQL_PORT}:${MYSQL_PORT}'
     volumes:
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "docker.for.mac.localhost", "-u", "root", "-ptest"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "docker.for.mac.localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -26,12 +25,12 @@ services:
       context: .
       dockerfile: cmd/web/Dockerfile.dev
     ports:
-      - "4000:4000"
+      - "${APP_PORT}:${APP_PORT}"
     depends_on:
       mysql:
         condition: service_healthy
     environment:
-      - DSN=web:test@tcp(mysql:3306)/snippetbox?parseTime=true
+      - DSN=${APP_DSN}
     command: ./cmd/web
     develop:
       watch:
@@ -41,4 +40,6 @@ services:
           target: /snippetbox/ui/static
         - action: rebuild
           path: ./ui/html
+        - action: rebuild
+          path: ./cmd/web
 
