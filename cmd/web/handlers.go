@@ -7,72 +7,98 @@ import (
 	"strconv"
 
 	"snippetbox.sagyzdop.com/internal/models"
+	"snippetbox.sagyzdop.com/internal/validator"
 )
 
-func (app *application) home(w http.ResponseWriter, r *http.Request) {    
-    snippets, err := app.snippets.Latest()
-    if err != nil {
-        app.serverError(w, r, err)
-        return
-    }
+func (app *application) home(w http.ResponseWriter, r *http.Request) {
+	snippets, err := app.snippets.Latest()
+	if err != nil {
+		app.serverError(w, r, err)
+		return
+	}
 
-    // Call the newTemplateData() helper to get a templateData struct containing
-    // the 'default' data (which for now is just the current year), and add the
-    // snippets slice to it.
-    data := app.newTemplateData(r)
-    data.Snippets = snippets
+	// Call the newTemplateData() helper to get a templateData struct containing
+	// the 'default' data (which for now is just the current year), and add the
+	// snippets slice to it.
+	data := app.newTemplateData(r)
+	data.Snippets = snippets
 
-    // Pass the data to the render() helper as normal.
-    app.render(w, r, http.StatusOK, "home.tmpl.html", data)
+	// Pass the data to the render() helper as normal.
+	app.render(w, r, http.StatusOK, "home.tmpl.html", data)
 }
 
 func (app *application) snippetView(w http.ResponseWriter, r *http.Request) {
-    id, err := strconv.Atoi(r.PathValue("id"))
-    if err != nil || id < 1 {
-        http.NotFound(w, r)
-        return
-    }
+	id, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil || id < 1 {
+		http.NotFound(w, r)
+		return
+	}
 
-    snippet, err := app.snippets.Get(id)
-    if err != nil {
-        if errors.Is(err, models.ErrNoRecord) {
-            http.NotFound(w, r)
-        } else {
-            app.serverError(w, r, err)
-        }
-        return
-    }
+	snippet, err := app.snippets.Get(id)
+	if err != nil {
+		if errors.Is(err, models.ErrNoRecord) {
+			http.NotFound(w, r)
+		} else {
+			app.serverError(w, r, err)
+		}
+		return
+	}
 
-    // And do the same thing again here...
-    data := app.newTemplateData(r)
-    data.Snippet = snippet
+    flash := app.sessionManager.PopString(r.Context(), "flash")
 
+	// And do the same thing again here...
+	data := app.newTemplateData(r)
+	data.Snippet = snippet
+    data.Flash = flash
+	
     app.render(w, r, http.StatusOK, "view.tmpl.html", data)
 }
 
 // Change the signature of the snippetCreate handler so it is defined as a method
 // against *application.
 func (app *application) snippetCreate(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("Display a form for creating a new snippet..."))
+	data := app.newTemplateData(r)
+    data.Form = snippetCreateForm{
+        Expires: 365,
+    }
+	app.render(w, r, http.StatusOK, "create.tmpl.html", data)
 }
 
-// Change the signature of the snippetCreatePost handler so it is defined as a method
-// against *application.
+type snippetCreateForm struct {
+	Title   string `form:"title"`
+	Content string `form:"content"`
+	Expires int    `form:"expires"`
+	validator.Validator `form:"-"`
+}
+
 func (app *application) snippetCreatePost(w http.ResponseWriter, r *http.Request) {
-	// Create some variables holding dummy data. We'll remove these later on
-	// during the build.
-	title := "O snail"
-	content := "O snail\nClimb Mount Fuji,\nBut slowly, slowly!\n\n– Kobayashi Issa"
-	expires := 7
+    var form snippetCreateForm
 
-	// Pass the data to the SnippetModel.Insert() method, receiving the
-	// ID of the new record back.
-	id, err := app.snippets.Insert(title, content, expires)
-	if err != nil {
-		app.serverError(w, r, err)
-		return
-	}
+    err := app.decodePostForm(r, &form)
+    if err != nil {
+        app.clientError(w, http.StatusBadRequest)
+        return
+    }
 
-	// Redirect the user to the relevant page for the snippet.
-	http.Redirect(w, r, fmt.Sprintf("/snippet/view/%d", id), http.StatusSeeOther)
+    form.CheckField(validator.NotBlank(form.Title), "title", "This field cannot be blank")
+    form.CheckField(validator.MaxChars(form.Title, 100), "title", "This field cannot be more than 100 characters long")
+    form.CheckField(validator.NotBlank(form.Content), "content", "This field cannot be blank")
+    form.CheckField(validator.PermittedValue(form.Expires, 1, 7, 365), "expires", "This field must equal 1, 7 or 365")
+
+    if !form.Valid() {
+        data := app.newTemplateData(r)
+        data.Form = form
+        app.render(w, r, http.StatusUnprocessableEntity, "create.tmpl.html", data)
+        return
+    }
+
+    
+    id, err := app.snippets.Insert(form.Title, form.Content, form.Expires)
+    if err != nil {
+        app.serverError(w, r, err)
+        return
+    }
+    app.sessionManager.Put(r.Context(), "flash", "Snippet successfully created!")
+    
+    http.Redirect(w, r, fmt.Sprintf("/snippet/view/%d", id), http.StatusSeeOther)
 }
