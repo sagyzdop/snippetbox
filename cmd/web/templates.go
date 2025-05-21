@@ -13,6 +13,8 @@ type templateData struct {
 	Snippets    []models.Snippet
 	Form        any
 	Flash       string
+	IsAuthenticated bool
+	CSRFToken string
 }
 
 var functions = template.FuncMap{
