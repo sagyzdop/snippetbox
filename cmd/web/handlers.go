@@ -9,9 +9,7 @@ import (
 	"snippetbox.sagyzdop.com/internal/models"
 )
 
-func (app *application) home(w http.ResponseWriter, r *http.Request) {
-    w.Header().Add("Server", "Go")
-    
+func (app *application) home(w http.ResponseWriter, r *http.Request) {    
     snippets, err := app.snippets.Latest()
     if err != nil {
         app.serverError(w, r, err)
