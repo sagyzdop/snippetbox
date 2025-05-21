@@ -31,6 +31,7 @@ services:
         condition: service_healthy
     environment:
       - DSN=${APP_DSN}
+      - APP_PORT=${APP_PORT}
     command: ./cmd/web
     develop:
       watch:

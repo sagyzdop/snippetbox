@@ -14,3 +14,4 @@ FROM alpine:latest
 WORKDIR /snippetbox
 COPY --chown=app:app --from=builder /build/snippetbox ./cmd/web
 COPY --chown=app:app ./ui ./ui
+COPY --chown=app:app ./tls ./tls

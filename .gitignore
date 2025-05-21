@@ -25,6 +25,9 @@ go.work.sum
 .env
 .vscode/
 
+# tls files
+tls/
+
 /tmp
 .DS_Store
 **/.DS_Store

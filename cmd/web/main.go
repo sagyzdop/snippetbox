@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"database/sql"
 	"flag"
 	"html/template"
@@ -11,23 +12,22 @@ import (
 
 	"snippetbox.sagyzdop.com/internal/models"
 
-	"github.com/alexedwards/scs/v2"
 	"github.com/alexedwards/scs/mysqlstore"
+	"github.com/alexedwards/scs/v2"
 	"github.com/go-playground/form/v4"
 	_ "github.com/go-sql-driver/mysql" // New import
 )
 
 type application struct {
-	logger        *slog.Logger
-	snippets      *models.SnippetModel
-	templateCache map[string]*template.Template
-	formDecoder   *form.Decoder
+	logger         *slog.Logger
+	snippets       *models.SnippetModel
+	templateCache  map[string]*template.Template
+	formDecoder    *form.Decoder
 	sessionManager *scs.SessionManager
 }
 
 func main() {
-
-	addr := flag.String("addr", ":4000", "HTTP network address")
+	addr := flag.String("addr", ":"+os.Getenv("APP_PORT"), "HTTP network address")
 	dsn := flag.String("dsn", os.Getenv("DSN"), "MySQL data source name")
 	flag.Parse()
 
@@ -48,10 +48,10 @@ func main() {
 	}
 
 	formDecoder := form.NewDecoder()
-    sessionManager := scs.New()
-    sessionManager.Store = mysqlstore.New(db)
-    sessionManager.Lifetime = 12 * time.Hour
-	
+	sessionManager := scs.New()
+	sessionManager.Store = mysqlstore.New(db)
+	sessionManager.Lifetime = 12 * time.Hour
+
 	// And add it to the application dependencies.
 	app := &application{
 		logger:         logger,
@@ -61,11 +61,25 @@ func main() {
 		sessionManager: sessionManager,
 	}
 
+	tlsConfig := &tls.Config{
+		CurvePreferences: []tls.CurveID{tls.CurveP256, tls.X25519},
+	}
+
+	srv := &http.Server{
+		Addr:      *addr,
+		Handler:   app.routes(),
+		ErrorLog:  slog.NewLogLogger(logger.Handler(), slog.LevelError),
+		TLSConfig: tlsConfig,
+		IdleTimeout:  time.Minute,
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 10 * time.Second,
+	}
+
 	logger.Info("starting server", "addr", *addr)
 
 	// Call the new app.routes() method to get the servemux containing our routes,
 	// and pass that to http.ListenAndServe().
-	err = http.ListenAndServe(*addr, app.routes())
+	err = srv.ListenAndServeTLS("./tls/cert.pem", "./tls/key.pem")
 	logger.Error(err.Error())
 	os.Exit(1)
 }
