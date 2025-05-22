@@ -8,10 +8,10 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY ./cmd ./cmd
 COPY ./internal ./internal
+COPY --chown=app:app ./ui ./ui
 RUN CGO_ENABLED=0 GOOS=linux go build -o ./snippetbox ./cmd/web
 
 FROM alpine:latest
 WORKDIR /snippetbox
 COPY --chown=app:app --from=builder /build/snippetbox ./cmd/web
-COPY --chown=app:app ./ui ./ui
 COPY --chown=app:app ./tls ./tls

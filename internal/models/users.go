@@ -9,6 +9,12 @@ import (
 	"github.com/go-sql-driver/mysql"
 	"golang.org/x/crypto/bcrypt"
 )
+type UserModelInterface interface {
+    Insert(name, email, password string) error
+    Authenticate(email, password string) (int, error)
+    Exists(id int) (bool, error)
+}
+
 
 // Define a new User struct. Notice how the field names and types align
 // with the columns in the database "users" table?
@@ -87,5 +93,10 @@ func (m *UserModel) Authenticate(email, password string) (int, error) {
 
 // We'll use the Exists method to check if a user exists with a specific ID.
 func (m *UserModel) Exists(id int) (bool, error) {
-	return false, nil
+	var exists bool
+
+	stmt := "SELECT EXISTS(SELECT true FROM users WHERE id = ?)"
+
+	err := m.DB.QueryRow(stmt, id).Scan(&exists)
+	return exists, err
 }
