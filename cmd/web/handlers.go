@@ -233,7 +233,11 @@ func (app *application) userLoginPost(w http.ResponseWriter, r *http.Request) {
 
 	// Add the ID of the current user to the session, so that they are now
 	// 'logged in'.
-	app.sessionManager.Put(r.Context(), "authenticatedUserID", id)
+	app.sessionManager.Put(r.Context(), "authenticatedUserID", id)    
+    if app.sessionManager.Exists(r.Context(), "redirectPathAfterLogin") {
+        http.Redirect(w, r, app.sessionManager.PopString(r.Context(), "redirectPathAfterLogin"), http.StatusSeeOther)
+        return
+    } 
 
 	// Redirect the user to the create snippet page.
 	http.Redirect(w, r, "/snippet/create", http.StatusSeeOther)
@@ -258,4 +262,22 @@ func (app *application) userLogoutPost(w http.ResponseWriter, r *http.Request) {
 
 	// Redirect the user to the application home page.
 	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+func (app *application) accountView(w http.ResponseWriter, r *http.Request) {
+    if !app.isAuthenticated(r) {
+        http.Redirect(w, r, "/user/login", http.StatusSeeOther)
+        return
+    }
+
+    user, err := app.users.Get(app.sessionManager.Get(r.Context(), "authenticatedUserID").(int))
+    if err != nil {
+        app.serverError(w, r, err)
+        return
+    }
+
+    data := app.newTemplateData(r)
+    data.User = user
+
+	app.render(w, r, http.StatusOK, "account.tmpl.html", data)
 }
