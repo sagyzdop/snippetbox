@@ -73,7 +73,13 @@ func (app *application) serverError(w http.ResponseWriter, r *http.Request, err 
 	// Include the trace in the log entry.
 	app.logger.Error(err.Error(), "method", method, "uri", uri, "trace", trace)
 
-	http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+	if app.debug_mode_on {
+		http.Error(w, fmt.Sprintf("%v\n%s\n", err, trace), http.StatusInternalServerError)
+	} else {
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+	}
+
+	// http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 }
 
 // The clientError helper sends a specific status code and corresponding description

@@ -32,7 +32,8 @@ services:
     environment:
       - DSN=${APP_DSN}
       - APP_PORT=${APP_PORT}
-    command: ./cmd/web
+    # command: ./cmd/web
+    command: ./cmd/web -debug=true
     develop:
       watch:
         - action: sync
