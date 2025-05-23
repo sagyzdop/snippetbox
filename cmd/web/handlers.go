@@ -281,3 +281,63 @@ func (app *application) accountView(w http.ResponseWriter, r *http.Request) {
 
 	app.render(w, r, http.StatusOK, "account.tmpl.html", data)
 }
+
+
+
+
+func (app *application) accountPasswordUpdate(w http.ResponseWriter, r *http.Request) {
+    data := app.newTemplateData(r)
+    data.Form = accountPasswordUpdateForm{}
+    app.render(w, r, http.StatusOK, "password.tmpl.html", data)
+}
+
+type accountPasswordUpdateForm struct {
+    CurrentPassword string `form:"currentPassword"`
+    NewPassword     string `form:"newPassword"`
+    NewPasswordConfirmation string `form:"newPasswordConfirmation"`
+    validator.Validator `form:"-"`
+}
+
+func (app *application) accountPasswordUpdatePost(w http.ResponseWriter, r *http.Request) {
+    var form accountPasswordUpdateForm
+
+	err := app.decodePostForm(r, &form)
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+    form.CheckField(validator.NotBlank(form.CurrentPassword), "currentPassword", "This field cannot be blank")
+    form.CheckField(validator.NotBlank(form.NewPassword), "newPassword", "This field cannot be blank")
+    form.CheckField(validator.MinChars(form.NewPassword, 8), "newPassword", "This field must be at least 8 characters long")
+    form.CheckField(form.CurrentPassword != form.NewPassword, "newPassword", "New password and current password cannot be the same")
+    form.CheckField(form.NewPassword == form.NewPasswordConfirmation, "newPasswordConfirmation", "New password and confirmation password do not match")
+    form.CheckField(validator.NotBlank(form.NewPasswordConfirmation), "newPasswordConfirmation", "This field cannot be blank")
+    form.CheckField(validator.MinChars(form.NewPasswordConfirmation, 8), "newPasswordConfirmation", "This field must be at least 8 characters long")
+
+	if !form.Valid() {
+		data := app.newTemplateData(r)
+		data.Form = form
+		app.render(w, r, http.StatusUnprocessableEntity, "password.tmpl.html", data)
+		return
+	}
+
+	// Try to create a new user record in the database. If the email already
+	// exists then add an error message to the form and re-display it.
+	err = app.users.PasswordUpdate(app.sessionManager.Get(r.Context(), "authenticatedUserID").(int), form.CurrentPassword, form.NewPassword)
+	if err != nil {
+		if errors.Is(err, models.ErrInvalidCredentials) {
+			form.AddNonFieldError("Current password is incorrect")
+			data := app.newTemplateData(r)
+			data.Form = form
+			app.render(w, r, http.StatusUnprocessableEntity, "password.tmpl.html", data)
+		} else {
+			app.serverError(w, r, err)
+		}
+		return
+	}
+
+	app.sessionManager.Put(r.Context(), "flash", "Your password was updated successfully.")
+
+	http.Redirect(w, r, "/account/view", http.StatusSeeOther)
+}
