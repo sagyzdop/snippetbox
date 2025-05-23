@@ -83,6 +83,34 @@ func TestSnippetView(t *testing.T) {
 	}
 }
 
+func TestSnippetCreate(t *testing.T) {
+	app := newTestApplication(t)
+	ts := newTestServer(t, app.routes())
+	defer ts.Close()
+
+
+	tests := []struct {
+				name         string
+				wantCode     int
+				wantHeader   string
+				wantHeaderValue string
+			}{
+				{
+					name:         "Unauthenticated",
+					wantCode:     http.StatusSeeOther,
+					wantHeader:   "Location",
+					wantHeaderValue: "/user/login",
+				},
+			}
+
+			for _, tt := range tests {
+				t.Run(tt.name, func(t *testing.T) {
+					code, headers, _ := ts.get(t, "/snippet/create")
+					assert.Equal(t, code, tt.wantCode)
+					assert.Equal(t, headers.Get("Location"), tt.wantHeaderValue)
+				})
+			}
+}
 
 // This test only works in nosurf version 1.1.1
 // Newer 1.2.0 uses a different kind of origin check
