@@ -13,7 +13,7 @@ services:
     ports:
       - '${MYSQL_PORT}:${MYSQL_PORT}'
     volumes:
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql # init.sql is a file that contains the SQL commands to create the database and the tables
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "docker.for.mac.localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
       interval: 5s
@@ -33,7 +33,7 @@ services:
       - DSN=${APP_DSN}
       - APP_PORT=${APP_PORT}
     command: ./cmd/web
-    # command: ./cmd/web -debug=true
+    # command: ./cmd/web -debug=true # -debug=true is a flag that tells the web application to run in debug mode
     develop:
       watch:
         - action: sync
